@@ -12,9 +12,7 @@ import java.util.Arrays;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @RequiredArgsConstructor
 public class BufferedInputReaderExt implements Closeable {
     private static int END_OF_STREAM_INDICATOR = -1;
