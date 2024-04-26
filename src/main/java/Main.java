@@ -1,7 +1,10 @@
+import http.ContentType;
+import http.HTTPHeader;
 import http.Response;
 import http.StatusCode;
 import lombok.extern.slf4j.Slf4j;
 import server.HttpServer;
+import java.util.Map;
 
 @Slf4j
 public class Main {
@@ -9,6 +12,13 @@ public class Main {
     log.info("Logs from your program will appear here!");
     HttpServer.builder()
         .get("/", (req) -> Response.http1().statusCode(StatusCode.Ok).build())
+        .get("/echo/:message", (req) -> {
+          String message = req.getPathParam("message");
+          log.info("Message = {}, Length = {}", message, message.length());
+          return Response.http1().statusCode(StatusCode.Ok)
+              .headers(Map.of(HTTPHeader.ContentType.getText(), ContentType.TEXT_PLAN.getText()))
+              .body(message).build();
+        })
         .build()
         .start(4221);
   }

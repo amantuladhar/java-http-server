@@ -5,7 +5,6 @@ import static lombok.AccessLevel.PRIVATE;
 import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.Map;
-
 import http.HTTPMethod;
 import http.Request;
 import http.Response;
@@ -17,29 +16,29 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor(access = PRIVATE)
 public class HttpServer {
-    private final Map<MappingKey, HttpRequestProcessor> mappings;
+    private final Map<RouteMappingKey, HttpRequestProcessor> mappings;
 
     public void start(int port) {
         try (var ss = new ServerSocket(port)) {
             ss.setReuseAddress(true);
-            try (var cs = ss.accept()) {
-                var req = Request.from(cs.getInputStream());
-                var resp = process(req);
-                var os = cs.getOutputStream();
-                os.write(resp.toBytes());
-                os.flush();
+            while (true) {
+                try (var cs = ss.accept()) {
+                    var req = Request.from(cs.getInputStream(), mappings.keySet());
+
+                    var key = new RouteMappingKey(req.getMethod(), req.getPattern());
+                    var resp = mappings.getOrDefault(key, res -> Response.http1()
+                            .statusCode(StatusCode.NotFound)
+                            .build())
+                            .process(req);
+
+                    var os = cs.getOutputStream();
+                    os.write(resp.toBytes());
+                    os.flush();
+                }
             }
         } catch (Exception e) {
             log.error("Unknown error: " + e.getMessage(), e);
         }
-    }
-
-    private Response process(Request req) {
-        var key = new MappingKey(req.getMethod(), req.getPath());
-        var processor = mappings.getOrDefault(key, request -> Response.http1()
-                .statusCode(StatusCode.NotFound)
-                .build());
-        return processor.process(req);
     }
 
     public static HttpServerBuilder builder() {
@@ -48,15 +47,15 @@ public class HttpServer {
 
     @NoArgsConstructor(access = PRIVATE)
     public static class HttpServerBuilder {
-        private HashMap<MappingKey, HttpRequestProcessor> mappings = new HashMap<>();
+        private HashMap<RouteMappingKey, HttpRequestProcessor> mappings = new HashMap<>();
 
         public HttpServerBuilder get(String location, HttpRequestProcessor processor) {
-            mappings.put(new MappingKey(HTTPMethod.GET, location), processor);
+            mappings.put(new RouteMappingKey(HTTPMethod.GET, location), processor);
             return this;
         }
 
-        public HttpServerBuilder pos(String location, HttpRequestProcessor processor) {
-            mappings.put(new MappingKey(HTTPMethod.POST, location), processor);
+        public HttpServerBuilder post(String location, HttpRequestProcessor processor) {
+            mappings.put(new RouteMappingKey(HTTPMethod.POST, location), processor);
             return this;
         }
 
@@ -65,6 +64,6 @@ public class HttpServer {
         }
     }
 
-    static record MappingKey(HTTPMethod method, String path) {
+    static record FindRouterResult(Request req, HttpRequestProcessor processor) {
     }
 }

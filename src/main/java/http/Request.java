@@ -7,28 +7,61 @@ import java.io.InputStream;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import static java.util.stream.Collectors.joining;
 import static lombok.AccessLevel.PRIVATE;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.io.IOException;
+import server.RouteMappingKey;
 
+@Slf4j
 @Getter
 @Builder
 @RequiredArgsConstructor(access = PRIVATE)
 public class Request {
-    @Getter(PRIVATE)
-    private final InputStream stream;
     private final HTTPMethod method;
     private final HTTPVersion version;
     private final String path;
+    private final String pattern;
 
-    public static Request from(InputStream stream) throws IOException {
+    @Getter(PRIVATE)
+    private final Map<String, String> pathParams;
+    @Getter(PRIVATE)
+    private final InputStream stream;
+
+    public String getPathParam(String key) {
+        return pathParams.get(key);
+    }
+
+    public static Request from(InputStream stream, Set<RouteMappingKey> mappings) throws IOException {
         var builder = Request.builder().stream(stream);
         var br = new BufferedInputReaderExt(stream);
+
+        // Status Line
         var statusLine = parseStatusLine(br);
         builder.method(statusLine.method())
                 .version(statusLine.httpVersion())
                 .path(statusLine.path());
+
+        // Path Variables
+        mappings.stream()
+                .filter(key -> key.method() == statusLine.method())
+                .map(key -> pathMatches(key, statusLine.path()))
+                .filter(matchResult -> matchResult.match())
+                .findFirst()
+                .ifPresent(matchResult -> {
+                    builder.pattern(matchResult.key().pattern());
+                    builder.pathParams(matchResult.routeParams());
+                });
+
         return builder.build();
     }
 
@@ -43,6 +76,44 @@ public class Request {
         } catch (Exception e) {
             throw new HttpRequestParseException("Unable to parse status line for HTTP reqeust", e);
         }
+    }
+
+    private static PathMatchResult pathMatches(RouteMappingKey key, String reqPath) {
+        List<String> grpNames = new ArrayList<>();
+
+        // Can't use this pattern for now because test sends / on payload
+        var splitPath = key.pattern().split("/");
+        var patternStr = Arrays.stream(splitPath)
+                .map((part) -> {
+                    if (!part.startsWith(":")) {
+                        return part;
+                    }
+                    var grpName = part.substring(1);
+                    grpNames.add(grpName);
+                    // return "(?<%s>[\\w]*[^\\/])".formatted(grpName);
+                    return "(?<%s>.*)".formatted(grpName);
+                })
+                .collect(joining("\\/"));
+
+        // Remove traling slash if exists
+        var path = reqPath.endsWith("/")
+                ? reqPath.substring(0, reqPath.length() - 1)
+                : reqPath;
+        var pattern = Pattern.compile(patternStr);
+        var matcher = pattern.matcher(path);
+        if (!matcher.matches()) {
+            return new PathMatchResult(key, false, Map.of());
+        }
+        Map<String, String> routeParam = new HashMap<>();
+        for (int i = 0; i < grpNames.size(); i++) {
+            var grpName = grpNames.get(i);
+            var grpValue = matcher.group(i + 1);
+            routeParam.put(grpName, grpValue);
+        }
+        return new PathMatchResult(key, true, routeParam);
+    }
+
+    static record PathMatchResult(RouteMappingKey key, boolean match, Map<String, String> routeParams) {
     }
 
     static record StatusLine(HTTPVersion httpVersion, HTTPMethod method, String path) {
