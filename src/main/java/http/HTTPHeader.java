@@ -7,7 +7,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum HTTPHeader {
     ContentLength("Content-Length"),
-    ContentType("Content-Type");
+    ContentType("Content-Type"),
+    UserAgent("User-Agent");
 
     private final String text;
 }

@@ -16,6 +16,12 @@ public record Response(HTTPVersion httpVersion, StatusCode statusCode, Map<Strin
         if (headers == null) {
             headers = Map.of();
         }
+        if (statusCode == null) {
+            statusCode = StatusCode.Ok;
+        }
+        if (httpVersion == null) {
+            httpVersion = HTTPVersion.HTTP_1_1;
+        }
     }
 
     public byte[] toBytes() {

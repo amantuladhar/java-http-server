@@ -19,6 +19,13 @@ public class Main {
               .headers(Map.of(HTTPHeader.ContentType.getText(), ContentType.TEXT_PLAN.getText()))
               .body(message).build();
         })
+        .get("/user-agent", (req) -> {
+          String userAgent = req.getHeader(HTTPHeader.UserAgent.getText());
+          return Response.builder()
+              .headers(Map.of(HTTPHeader.ContentType.getText(), ContentType.TEXT_PLAN.getText()))
+              .body(userAgent)
+              .build();
+        })
         .build()
         .start(4221);
   }

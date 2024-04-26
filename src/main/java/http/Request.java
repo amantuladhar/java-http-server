@@ -7,7 +7,6 @@ import java.io.InputStream;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import static java.util.stream.Collectors.joining;
 import static lombok.AccessLevel.PRIVATE;
@@ -21,8 +20,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.io.IOException;
 import server.RouteMappingKey;
+import java.util.LinkedHashMap;
 
-@Slf4j
 @Getter
 @Builder
 @RequiredArgsConstructor(access = PRIVATE)
@@ -36,9 +35,15 @@ public class Request {
     private final Map<String, String> pathParams;
     @Getter(PRIVATE)
     private final InputStream stream;
+    @Getter(PRIVATE)
+    private final Map<String, String> headers;
 
     public String getPathParam(String key) {
         return pathParams.get(key);
+    }
+
+    public String getHeader(String key) {
+        return headers.get(key);
     }
 
     public static Request from(InputStream stream, Set<RouteMappingKey> mappings) throws IOException {
@@ -50,6 +55,8 @@ public class Request {
         builder.method(statusLine.method())
                 .version(statusLine.httpVersion())
                 .path(statusLine.path());
+
+        builder.headers(parseHeader(br));
 
         // Path Variables
         mappings.stream()
@@ -63,6 +70,19 @@ public class Request {
                 });
 
         return builder.build();
+    }
+
+    private static Map<String, String> parseHeader(BufferedInputReaderExt reader) throws IOException {
+        Map<String, String> headers = new LinkedHashMap<>();
+        while (true) {
+            String line = reader.readLine();
+            if (line.isBlank()) {
+                break;
+            }
+            String[] split = line.split(": ");
+            headers.put(split[0], split[1]);
+        }
+        return headers;
     }
 
     private static StatusLine parseStatusLine(BufferedInputReaderExt reader) {
