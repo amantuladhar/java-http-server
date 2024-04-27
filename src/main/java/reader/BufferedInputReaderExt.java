@@ -26,6 +26,15 @@ public class BufferedInputReaderExt implements Closeable {
         streamEnded = false;
     }
 
+    public byte[] readExact(int length) throws IOException {
+        return stream.readNBytes(length);
+    }
+
+    public String readExactStr(int length) throws IOException {
+        byte[] content = readExact(length);
+        return new String(content);
+    }
+
     public ReadData readUntil(int token) throws IOException {
         var buf = new ByteArrayOutputStream();
         int curChar;

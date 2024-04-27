@@ -5,6 +5,7 @@ import http.StatusCode;
 import lombok.extern.slf4j.Slf4j;
 import server.HttpServer;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,6 +48,22 @@ public class Main {
           } catch (Exception e) {
             return Response.builder()
                 .statusCode(StatusCode.NotFound)
+                .build();
+          }
+        })
+        .post("/files/:filename", (req) -> {
+          String fileName = req.getPathParam("filename");
+          String directory = AppConfig.get("--directory")
+              .orElseThrow(() -> new RuntimeException("--directory cli args is not set"));
+          byte[] body = req.getBody();
+          try {
+            Files.write(Paths.get(directory + fileName), body);
+            return Response.builder()
+                .statusCode(StatusCode.Created)
+                .build();
+          } catch (IOException e) {
+            return Response.builder()
+                .statusCode(StatusCode.Created)
                 .build();
           }
         })

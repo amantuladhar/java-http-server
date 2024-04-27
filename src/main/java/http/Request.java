@@ -7,6 +7,7 @@ import java.io.InputStream;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import static java.util.stream.Collectors.joining;
 import static lombok.AccessLevel.PRIVATE;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import server.RouteMappingKey;
 import java.util.LinkedHashMap;
 
+@Slf4j
 @Getter
 @Builder
 @RequiredArgsConstructor(access = PRIVATE)
@@ -30,6 +32,7 @@ public class Request {
     private final HTTPVersion version;
     private final String path;
     private final String pattern;
+    private final byte[] body;
 
     @Getter(PRIVATE)
     private final Map<String, String> pathParams;
@@ -56,7 +59,8 @@ public class Request {
                 .version(statusLine.httpVersion())
                 .path(statusLine.path());
 
-        builder.headers(parseHeader(br));
+        var headers = parseHeader(br);
+        builder.headers(headers);
 
         // Path Variables
         mappings.stream()
@@ -68,6 +72,14 @@ public class Request {
                     builder.pattern(matchResult.key().pattern());
                     builder.pathParams(matchResult.routeParams());
                 });
+        // Request Body
+        String contentLength = headers.get(HTTPHeader.ContentLength.getText());
+        if (contentLength != null && !contentLength.isBlank()) {
+            Integer length = Integer.parseInt(contentLength);
+            log.info("Content Length - {}", contentLength);
+            byte[] body = br.readExact(length);
+            builder.body(body);
+        }
 
         return builder.build();
     }

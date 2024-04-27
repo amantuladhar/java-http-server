@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum StatusCode {
-    Ok(200, "OK"), NotFound(404, "Not Found");
+    Ok(200, "OK"), Created(201, "Created"), NotFound(404, "Not Found");
 
     final int code;
     final String text;
