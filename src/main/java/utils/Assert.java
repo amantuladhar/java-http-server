@@ -20,4 +20,14 @@ public class Assert {
             throw new IllegalArgumentException(message);
         }
     }
+
+    public static <T> void isNull(T type) {
+        isNull(type, "null expected");
+    }
+
+    public static <T> void isNull(T type, String message) {
+        if (type != null) {
+            throw new IllegalArgumentException(message);
+        }
+    }
 }

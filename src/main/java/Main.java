@@ -4,11 +4,19 @@ import http.Response;
 import http.StatusCode;
 import lombok.extern.slf4j.Slf4j;
 import server.HttpServer;
+
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
+
+import config.AppConfig;
 
 @Slf4j
 public class Main {
   public static void main(String[] args) {
+    AppConfig.initialize(args);
     log.info("Logs from your program will appear here!");
     HttpServer.builder()
         .get("/", (req) -> Response.http1().statusCode(StatusCode.Ok).build())
@@ -25,6 +33,22 @@ public class Main {
               .headers(Map.of(HTTPHeader.ContentType.getText(), ContentType.TEXT_PLAN.getText()))
               .body(userAgent)
               .build();
+        })
+        .get("/files/:filename", (req) -> {
+          String fileName = req.getPathParam("filename");
+          String directory = AppConfig.get("--directory")
+              .orElseThrow(() -> new RuntimeException("--directory cli args is not set"));
+          try {
+            String content = Files.readString(Paths.get(directory + fileName));
+            return Response.builder()
+                .headers(Map.of(HTTPHeader.ContentType.getText(), ContentType.APPLICATION_OCTET_STREAM.getText()))
+                .body(content)
+                .build();
+          } catch (Exception e) {
+            return Response.builder()
+                .statusCode(StatusCode.NotFound)
+                .build();
+          }
         })
         .build()
         .start(4221);
